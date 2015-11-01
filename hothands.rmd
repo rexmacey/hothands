@@ -1,0 +1,53 @@
+---
+title: "Truth in the Law of Small Numbers"
+author: "Rex Macey"
+date: "November 1, 2015"
+output: html_document
+---
+
+Recently, I've seen several news articles referring to the articles [Surprised by the Gamber's and Hot Hand Fallacies? A Truth in the Law of Small Numbers](http://papers.ssrn.com/sol3/papers.cfm?abstract_id=2627354) by Miller and Sanjurjo. In it the authors write
+
+```
+Jack takes a coin from his pocket and decides that he will flip it 4 times in a row, writing down
+the outcome of each flip on a scrap of paper. After he is done flipping, he will look at the flips that
+immediately followed an outcome of heads, and compute the relative frequency of heads on those
+flips. Because the coin is fair, Jack of course expects this empirical probability of heads to be equal
+to the true probability of flipping a heads: 0.5. Shockingly, Jack is wrong. If he were to sample one
+million fair coins and flip each coin 4 times, observing the conditional relative frequency for each
+coin, on average the relative frequency would be approximately 0.4.
+```
+I do not understand how they arrive at 0.4.  Per the experiment below, 0.5 appears correct.  
+```{r}
+ncoins<-1000000
+nflips<-4
+flips<-matrix(rbinom(ncoins*nflips,1,0.5),nrow=ncoins,ncol=nflips)
+```
+Using a binomial distribution, I simulate the flipping `r ncoins` each `r nflips` times assuming a probability of success of 0.5. In this sample of `r ncoins*nflips`, the observed probability of success was `r sum(flips)/(ncoins*nflips)` across all flips.
+
+Turning to the question of what percentage successes were followed by success, `r nflips-1` flips of each coin can be followed by a flip.  In the code below we create a table of results witha a row for each flip except for the last (which isn't followed by another flip) and a row for the total. The first column of the table shows the number of successes on the flip.  The second shows how many of those successful flips were followed by a success. And the last column is the percentage of successful flips that were followed by a success (the second column divided by the first).
+``` {r}
+results<-matrix(NA,nrow=nflips,ncol=3)
+row.names(results)=paste("Flip ",seq(1,nflips))
+row.names(results)[nflips]="Total"
+colnames(results)<-c("NSuccess","NConsecSuccess","Percent")
+
+eval_flips<-function(flips,i){
+    out<-list()
+    idx<-flips[,i]==1
+    out$nsuccess<-sum(idx)
+    out$nconsecsuccess<-sum(flips[idx,i+1])
+    return(out)
+}
+
+for (i in 1:(nflips-1)){
+    flip.result<-eval_flips(flips,i)
+    results[i,"NSuccess"]<-flip.result$nsuccess
+    results[i,"NConsecSuccess"]<-flip.result$nconsecsuccess
+}
+results<-data.frame(results)
+results[nflips,1]<-sum(results[1:(nflips-1),1])
+results[nflips,2]<-sum(results[1:(nflips-1),2])
+results$Percent<-results$NConsecSuccess/results$NSuccess
+results
+```
+Overall the probability of a success following a success was `r results[nrow(results),ncol(results)]` which is close to 0.50. 
